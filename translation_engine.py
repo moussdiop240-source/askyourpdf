@@ -3,13 +3,17 @@
 AskYourPDF v4.0 — Translation Engine
 Handles detecting languages and translating between 10 languages
 """
+import os
 import requests
 import time
 from typing import Optional, Dict, List
 from dataclasses import dataclass
+from dotenv import load_dotenv
 
-OLLAMA_BASE_URL = "http://localhost:11434"
-TRANSLATION_MODEL = "llama3.2:latest"
+load_dotenv()
+
+OLLAMA_BASE_URL = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+TRANSLATION_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:latest")
 MAX_RETRIES = 2
 RETRY_DELAY = 1
 

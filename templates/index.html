@@ -414,6 +414,10 @@
                     <option value="de">🇩🇪 DE</option>
                     <option value="it">🇮🇹 IT</option>
                     <option value="pt">🇵🇹 PT</option>
+                    <option value="nl">🇳🇱 NL</option>
+                    <option value="ja">🇯🇵 JA</option>
+                    <option value="zh">🇨🇳 ZH</option>
+                    <option value="ar">🇸🇦 AR</option>
                 </select>
             </div>
         </div>
@@ -445,7 +449,7 @@
         <div class="modal-content">
             <h2>📘 How to use AskYourPDF</h2>
             <ol>
-                <li><strong>Upload a PDF</strong> – click the Upload button and select a text‑based PDF.</li>
+                <li><strong>Upload a PDF</strong> – click the Upload button and select a text‑based PDF (max 64 MB).</li>
                 <li><strong>Load a document</strong> – choose from the dropdown, then click Load.</li>
                 <li><strong>Ask questions</strong> – type your question and press Enter or click Send.</li>
                 <li><strong>Summarize</strong> – get a concise summary of the entire document.</li>
@@ -470,10 +474,32 @@
         const deleteBtn = document.getElementById('deleteBtn');
         const docSelect = document.getElementById('docSelect');
 
+        const MAX_FILE_SIZE_MB = 64;
+        const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
         fileInput.addEventListener('change', () => {
             const file = fileInput.files[0];
-            if (file) uploadFile(file);
+            if (!file) return;
+            if (file.size > MAX_FILE_SIZE_BYTES) {
+                const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+                addMessage(
+                    `❌ File too large: <strong>${sizeMB} MB</strong>. Maximum allowed size is <strong>${MAX_FILE_SIZE_MB} MB</strong>.`,
+                    'error'
+                );
+                fileInput.value = '';
+                return;
+            }
+            uploadFile(file);
         });
+
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
 
         function addMessage(text, type) {
             const div = document.createElement('div');
@@ -485,8 +511,9 @@
         }
 
         async function uploadFile(file) {
-            fileLabel.textContent = 'Processing…';
-            addMessage('⏳ Processing PDF… This may take a minute.', 'ai');
+            const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+            fileLabel.textContent = `Processing… (${sizeMB} MB)`;
+            addMessage(`⏳ Processing PDF <strong>${escapeHtml(file.name)}</strong> (${sizeMB} MB)… This may take a minute.`, 'ai');
             const form = new FormData();
             form.append('pdf_file', file);
             try {
@@ -608,9 +635,9 @@
                 const data = await res.json();
                 loader.remove();
                 if (data.error) {
-                    addMessage('❌ ' + data.error, 'error');
+                    addMessage('❌ ' + escapeHtml(data.error), 'error');
                 } else {
-                    let txt = data.answer;
+                    let txt = escapeHtml(data.answer);
                     if (data.source_pages && data.source_pages.length) {
                         txt += `<div class="source">📑 Source pages: ${data.source_pages.join(', ')}</div>`;
                     }

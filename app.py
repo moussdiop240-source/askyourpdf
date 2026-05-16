@@ -31,6 +31,7 @@ from rag_engine import (
     list_documents,
     delete_document,
     _load_registry,
+    OLLAMA_MODEL,
 )
 from translation_engine import (
     translate_text,
@@ -43,7 +44,7 @@ from translation_engine import (
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "dev-secret-change-me")
-app.config["MAX_CONTENT_LENGTH"] = int(os.getenv("MAX_CONTENT_LENGTH", 16 * 1024 * 1024))
+app.config["MAX_CONTENT_LENGTH"] = int(os.getenv("MAX_CONTENT_LENGTH", 64 * 1024 * 1024))
 app.config["UPLOAD_FOLDER"] = "data"
 
 for folder in ["data", "logs", "chroma_db"]:
@@ -220,7 +221,7 @@ def ask():
         return jsonify({
             "answer": result["answer"],
             "source_pages": result["source_pages"],
-            "model": OLLAMA_MODEL if hasattr(app, 'OLLAMA_MODEL') else "llama3.2",
+            "model": OLLAMA_MODEL,
         })
     except Exception as e:
         logger.error(f"Ask error: {e}")

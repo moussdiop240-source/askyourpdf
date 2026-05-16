@@ -14,8 +14,9 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_ollama import OllamaEmbeddings, ChatOllama
 from langchain_community.vectorstores import Chroma
-from langchain.chains import RetrievalQA, LLMChain
+from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 
 load_dotenv()
 
@@ -68,9 +69,21 @@ def process_pdf(pdf_filename, doc_id=None):
 
     print(f"📄 Loading: {pdf_filename}")
     loader = PyPDFLoader(pdf_path)
-    documents = loader.load()
+    try:
+        documents = loader.load()
+    except Exception as e:
+        raise ValueError(f"Failed to parse PDF: {e}")
+
     if not documents:
-        raise ValueError("PDF has no text.")
+        raise ValueError("PDF has no extractable text. It may be a scanned image PDF.")
+
+    # Drop pages with no meaningful text (scanned pages return whitespace/empty)
+    documents = [d for d in documents if d.page_content and len(d.page_content.strip()) > 20]
+    if not documents:
+        raise ValueError(
+            "No readable text found in this PDF. "
+            "Scanned or image-only PDFs are not supported — please use a text-based PDF."
+        )
 
     print(f"   Loaded {len(documents)} pages")
 
@@ -105,7 +118,6 @@ def process_pdf(pdf_filename, doc_id=None):
         embedding=embeddings,
         persist_directory=store_path,
     )
-    vectorstore.persist()
     print(f"   Database saved to {store_path}")
 
     reg = _load_registry()
@@ -113,6 +125,7 @@ def process_pdf(pdf_filename, doc_id=None):
         "filename": pdf_filename,
         "page_count": len(documents),
         "chunk_count": len(chunks),
+        "uploaded_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
     }
     _save_registry(reg)
 
@@ -130,8 +143,11 @@ def load_existing_db(doc_id):
         persist_directory=store_path,
         embedding_function=embeddings,
     )
-    count = vectorstore._collection.count()
-    print(f"   Loaded {count} chunks")
+    try:
+        count = vectorstore._collection.count()
+        print(f"   Loaded {count} chunks")
+    except Exception:
+        print("   Database loaded")
     return vectorstore
 
 
@@ -249,6 +265,6 @@ TEXT:
 
 SUMMARY:"""
     )
-    chain = LLMChain(llm=llm, prompt=prompt)
-    summary = chain.run(full_text)
+    chain = prompt | llm | StrOutputParser()
+    summary = chain.invoke({"text": full_text})
     return summary.strip()
