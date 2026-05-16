@@ -1,0 +1,8 @@
+venv/
+venvvenv/
+__pycache__/
+*.pyc
+chroma_db/
+logs/
+*.log
+.env
